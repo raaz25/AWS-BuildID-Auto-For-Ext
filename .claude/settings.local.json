@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "WebFetch(domain:www.guerrillamail.com)",
+      "WebSearch",
+      "mcp__mcp-router__fetch_content",
+      "mcp__ace-tool__search_context",
+      "Bash(curl -s -H \"X-API-Key: gpt-test\" \"https://mail.chatgpt.org.uk/api/generate-email\")",
+      "Bash(curl -v -s -H \"X-API-Key: gpt-test\" \"https://mail.chatgpt.org.uk/api/generate-email\")",
+      "Bash(curl -s -X OPTIONS -H \"Origin: chrome-extension://test\" -H \"Access-Control-Request-Method: GET\" -H \"Access-Control-Request-Headers: X-API-Key\" -v \"https://mail.chatgpt.org.uk/api/generate-email\")",
+      "Bash(curl:*)"
+    ]
+  }
+}

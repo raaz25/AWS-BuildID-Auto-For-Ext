@@ -46,6 +46,23 @@ const gmailAuthStatus = document.getElementById('gmail-auth-status');
 const gmailSenderInput = document.getElementById('gmail-sender');
 const gmailSenderSaveBtn = document.getElementById('gmail-sender-save-btn');
 
+// 渠道选择元素
+const mailProviderSelect = document.getElementById('mail-provider-select');
+const gmailConfigPanel = document.getElementById('gmail-config-panel');
+const guerrillaConfigPanel = document.getElementById('guerrilla-config-panel');
+const gptmailConfigPanel = document.getElementById('gptmail-config-panel');
+
+// GPTMail 配置元素
+const gptmailApiKeyInput = document.getElementById('gptmail-apikey');
+const gptmailSaveBtn = document.getElementById('gptmail-save-btn');
+
+// DuckMail 配置元素
+const duckMailConfigPanel = document.getElementById('duckmail-config-panel');
+const duckMailApiKeyInput = document.getElementById('duckmail-apikey');
+const duckMailApiKeySaveBtn = document.getElementById('duckmail-apikey-save-btn');
+const duckMailDomainSelect = document.getElementById('duckmail-domain-select');
+const duckMailRefreshDomainsBtn = document.getElementById('duckmail-refresh-domains-btn');
+
 // Token Pool 元素
 const poolApiKeyInput = document.getElementById('pool-api-key');
 const poolConnectBtn = document.getElementById('pool-connect-btn');
@@ -58,6 +75,9 @@ const poolPoints = document.getElementById('pool-points');
 
 // Gmail 配置
 let gmailAddress = '';
+
+// 当前选择的邮箱渠道
+let currentProvider = 'gmail';
 
 // Token Pool 配置
 const POOL_API_URL = 'http://localhost:8080';
@@ -402,11 +422,18 @@ async function startRegistration() {
   const loopCount = parseInt(loopCountInput.value) || 1;
   const concurrency = parseInt(concurrencyInput.value) || 1;
 
-  // 检查 Gmail 是否已配置
-  if (!gmailAddress) {
-    alert('请先配置 Gmail 地址');
-    gmailAddressInput.focus();
-    return;
+  // 根据渠道类型检查配置
+  if (currentProvider === 'gmail') {
+    if (!gmailAddress) {
+      alert('请先配置 Gmail 地址');
+      gmailAddressInput.focus();
+      return;
+    }
+  } else if (currentProvider === 'duckmail') {
+    if (!duckMailDomainSelect.value) {
+      alert('请先选择 DuckMail 域名');
+      return;
+    }
   }
 
   // 验证输入
@@ -420,7 +447,7 @@ async function startRegistration() {
   }
 
   // Gmail 别名模式建议并发为 1
-  if (concurrency > 1) {
+  if (currentProvider === 'gmail' && concurrency > 1) {
     const confirm = window.confirm('使用 Gmail 别名模式时，建议并发设为 1（需要手动输入验证码）。\n\n是否继续？');
     if (!confirm) return;
   }
@@ -432,7 +459,8 @@ async function startRegistration() {
       type: 'START_BATCH_REGISTRATION',
       loopCount,
       concurrency,
-      gmailAddress  // 传递 Gmail 地址
+      provider: currentProvider,
+      gmailAddress: currentProvider === 'gmail' ? gmailAddress : ''
     });
     console.log('[Popup] 注册响应:', response);
 
@@ -658,6 +686,68 @@ async function validateAllTokens() {
 // ==================== Gmail 配置功能 ====================
 
 /**
+ * 切换渠道配置面板显示
+ */
+function switchProviderPanel(providerId) {
+  // 隐藏所有面板
+  gmailConfigPanel.style.display = 'none';
+  guerrillaConfigPanel.style.display = 'none';
+  gptmailConfigPanel.style.display = 'none';
+  duckMailConfigPanel.style.display = 'none';
+
+  // 显示对应面板
+  switch (providerId) {
+    case 'gmail':
+      gmailConfigPanel.style.display = 'flex';
+      break;
+    case 'guerrilla':
+      guerrillaConfigPanel.style.display = 'block';
+      break;
+    case 'gptmail':
+      gptmailConfigPanel.style.display = 'block';
+      break;
+    case 'duckmail':
+      duckMailConfigPanel.style.display = 'block';
+      loadDuckMailDomains();  // 切换到 DuckMail 时加载域名
+      break;
+  }
+}
+
+/**
+ * 加载邮箱渠道配置
+ */
+async function loadProviderConfig() {
+  try {
+    const result = await chrome.storage.local.get(['mailProvider']);
+    if (result.mailProvider) {
+      currentProvider = result.mailProvider;
+      mailProviderSelect.value = currentProvider;
+    }
+    switchProviderPanel(currentProvider);
+  } catch (error) {
+    console.error('[Provider] 加载配置错误:', error);
+  }
+}
+
+/**
+ * 保存邮箱渠道配置
+ */
+async function saveProviderConfig(providerId) {
+  try {
+    currentProvider = providerId;
+    await chrome.storage.local.set({ mailProvider: providerId });
+    // 通知 service worker 切换渠道
+    await chrome.runtime.sendMessage({
+      type: 'SET_MAIL_PROVIDER',
+      provider: providerId
+    });
+    console.log('[Provider] 已切换到:', providerId);
+  } catch (error) {
+    console.error('[Provider] 保存配置错误:', error);
+  }
+}
+
+/**
  * 加载 Gmail 配置
  */
 async function loadGmailConfig() {
@@ -809,6 +899,151 @@ async function saveGmailSender() {
 }
 
 // ==================== Token Pool 功能 ====================
+
+// ==================== GPTMail 配置功能 ====================
+
+/**
+ * 加载 GPTMail 配置
+ */
+async function loadGptmailConfig() {
+  try {
+    const result = await chrome.storage.local.get(['gptmailApiKey']);
+    if (result.gptmailApiKey) {
+      gptmailApiKeyInput.value = result.gptmailApiKey;
+    }
+  } catch (error) {
+    console.error('[GPTMail] 加载配置错误:', error);
+  }
+}
+
+/**
+ * 保存 GPTMail 配置
+ */
+async function saveGptmailConfig() {
+  const apiKey = gptmailApiKeyInput.value.trim() || 'gpt-test';
+
+  try {
+    await chrome.storage.local.set({ gptmailApiKey: apiKey });
+    // 通知 service worker
+    await chrome.runtime.sendMessage({
+      type: 'SET_GPTMAIL_APIKEY',
+      apiKey: apiKey
+    });
+
+    // 显示保存成功提示
+    gptmailSaveBtn.textContent = '已保存';
+    setTimeout(() => {
+      gptmailSaveBtn.textContent = '保存';
+    }, 1500);
+
+    console.log('[GPTMail] API Key 已保存');
+  } catch (error) {
+    console.error('[GPTMail] 保存配置错误:', error);
+    alert('保存失败: ' + error.message);
+  }
+}
+
+// ==================== Token Pool 功能（原位置） ====================
+
+// ==================== DuckMail 配置功能 ====================
+
+/**
+ * 加载 DuckMail 配置
+ */
+async function loadDuckMailConfig() {
+  try {
+    const result = await chrome.storage.local.get(['duckMailApiKey', 'duckMailDomain']);
+    if (result.duckMailApiKey) {
+      duckMailApiKeyInput.value = result.duckMailApiKey;
+    }
+    if (result.duckMailDomain) {
+      // 域名列表加载后会自动选中
+      duckMailDomainSelect._savedDomain = result.duckMailDomain;
+    }
+  } catch (error) {
+    console.error('[DuckMail] 加载配置错误:', error);
+  }
+}
+
+/**
+ * 保存 DuckMail API Key
+ */
+async function saveDuckMailApiKey() {
+  const apiKey = duckMailApiKeyInput.value.trim();
+
+  try {
+    await chrome.storage.local.set({ duckMailApiKey: apiKey });
+    await chrome.runtime.sendMessage({
+      type: 'SET_DUCKMAIL_CONFIG',
+      apiKey: apiKey
+    });
+
+    duckMailApiKeySaveBtn.textContent = '已保存';
+    setTimeout(() => { duckMailApiKeySaveBtn.textContent = '保存'; }, 1500);
+
+    console.log('[DuckMail] API Key 已保存');
+    // 保存后刷新域名列表（可能有私有域名）
+    await loadDuckMailDomains();
+  } catch (error) {
+    console.error('[DuckMail] 保存 API Key 错误:', error);
+    alert('保存失败: ' + error.message);
+  }
+}
+
+/**
+ * 加载 DuckMail 域名列表
+ */
+async function loadDuckMailDomains() {
+  duckMailDomainSelect.innerHTML = '<option value="">加载域名中...</option>';
+  duckMailDomainSelect.disabled = true;
+
+  try {
+    const response = await chrome.runtime.sendMessage({ type: 'GET_DUCKMAIL_DOMAINS' });
+
+    if (!response.success) {
+      throw new Error(response.error || '获取域名失败');
+    }
+
+    const domains = response.domains || [];
+    const savedDomain = duckMailDomainSelect._savedDomain ||
+      (await chrome.storage.local.get(['duckMailDomain'])).duckMailDomain || '';
+
+    duckMailDomainSelect.innerHTML = domains.map(d =>
+      `<option value="${d}" ${d === savedDomain ? 'selected' : ''}>${d}</option>`
+    ).join('');
+
+    // 如果没有保存的域名，默认选第一个并保存
+    if (!savedDomain && domains.length > 0) {
+      saveDuckMailDomain(domains[0]);
+    } else if (savedDomain) {
+      saveDuckMailDomain(savedDomain);
+    }
+
+  } catch (error) {
+    console.error('[DuckMail] 加载域名失败:', error);
+    duckMailDomainSelect.innerHTML = '<option value="">加载失败，点击刷新</option>';
+  } finally {
+    duckMailDomainSelect.disabled = false;
+  }
+}
+
+/**
+ * 保存 DuckMail 域名选择
+ */
+async function saveDuckMailDomain(domain) {
+  try {
+    await chrome.storage.local.set({ duckMailDomain: domain });
+    await chrome.runtime.sendMessage({
+      type: 'SET_DUCKMAIL_CONFIG',
+      domain: domain
+    });
+    console.log('[DuckMail] 域名已保存:', domain);
+  } catch (error) {
+    console.error('[DuckMail] 保存域名错误:', error);
+  }
+}
+
+// ==================== Token Pool 功能（继续） ====================
 
 /**
  * 加载 Token Pool 配置
@@ -996,11 +1231,20 @@ async function init() {
     console.error('[Popup] 获取状态错误:', error);
   }
 
+  // 加载邮箱渠道配置
+  await loadProviderConfig();
+
   // 加载 Gmail 配置
   await loadGmailConfig();
 
   // 加载 Gmail API 配置
   await loadGmailApiConfig();
+
+  // 加载 GPTMail 配置
+  await loadGptmailConfig();
+
+  // 加载 DuckMail 配置
+  await loadDuckMailConfig();
 
   // 加载 Token Pool 配置
   await loadPoolConfig();
@@ -1021,6 +1265,13 @@ async function init() {
   clearBtn.addEventListener('click', clearHistory);
   validateBtn.addEventListener('click', validateAllTokens);
 
+  // 渠道选择事件
+  mailProviderSelect.addEventListener('change', (e) => {
+    const providerId = e.target.value;
+    switchProviderPanel(providerId);
+    saveProviderConfig(providerId);
+  });
+
   // Gmail 配置事件
   gmailSaveBtn.addEventListener('click', saveGmailConfig);
   gmailAddressInput.addEventListener('keypress', (e) => {
@@ -1032,6 +1283,26 @@ async function init() {
   // Gmail API 授权事件
   gmailAuthBtn.addEventListener('click', authorizeGmailApi);
   gmailSenderSaveBtn.addEventListener('click', saveGmailSender);
+
+  // GPTMail 配置事件
+  gptmailSaveBtn.addEventListener('click', saveGptmailConfig);
+  gptmailApiKeyInput.addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') {
+      saveGptmailConfig();
+    }
+  });
+
+  // DuckMail 配置事件
+  duckMailApiKeySaveBtn.addEventListener('click', saveDuckMailApiKey);
+  duckMailApiKeyInput.addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') {
+      saveDuckMailApiKey();
+    }
+  });
+  duckMailDomainSelect.addEventListener('change', (e) => {
+    saveDuckMailDomain(e.target.value);
+  });
+  duckMailRefreshDomainsBtn.addEventListener('click', loadDuckMailDomains);
 
   // Token Pool 事件
   poolConnectBtn.addEventListener('click', connectToPool);

@@ -3,10 +3,14 @@
  * 管理注册状态和流程控制，支持多窗口并发注册
  */
 
-import { GmailAliasClient } from '../lib/mail-api.js';
 import { GmailApiClient } from '../lib/gmail-api.js';
+import { createProvider } from '../lib/mail-providers/index.js';
+import { DuckMailProvider } from '../lib/mail-providers/duckmail.js';
 import { AWSDeviceAuth, validateToken, refreshAndValidateToken } from '../lib/oidc-api.js';
-import { generatePassword, generateName, generateEmailPrefix } from '../lib/utils.js';
+import { generatePassword, generateName } from '../lib/utils.js';
+
+// 邮箱渠道配置
+let currentMailProvider = 'gmail';  // 当前选择的渠道
 
 // Gmail 配置
 let gmailBaseAddress = '';
@@ -15,6 +19,13 @@ let gmailBaseAddress = '';
 let gmailApiClient = null;
 let gmailApiAuthorized = false;
 let gmailSenderFilter = 'no-reply@signin.aws';  // AWS 验证码发件人
+
+// GPTMail 配置
+let gptmailApiKey = 'gpt-test';  // 默认测试 Key
+
+// DuckMail 配置
+let duckMailApiKey = '';  // 可选 API Key
+let duckMailDomain = '';  // 用户选择的域名
 
 // ============== 全局状态 ==============
 
@@ -163,7 +174,9 @@ function createSession() {
     password: null,
     firstName: null,
     lastName: null,
-    // 邮箱客户端
+    // 邮箱渠道 Provider
+    mailProvider: null,
+    // 兼容旧代码
     mailClient: null,
     mailAccessKey: null,
     // OIDC 客户端
@@ -251,28 +264,43 @@ async function runSessionRegistration(session) {
     session.lastName = lastName;
     session.password = password;
 
-    // 步骤 2: 生成 Gmail 别名邮箱
-    updateSession(session.id, { step: '生成邮箱别名...' });
-    
-    if (!gmailBaseAddress) {
-      throw new Error('未配置 Gmail 地址，请在插件设置中配置');
+    // 步骤 2: 创建邮箱（根据渠道类型）
+    updateSession(session.id, { step: '创建邮箱...' });
+
+    // 创建对应渠道的 provider
+    const providerOptions = {};
+    if (currentMailProvider === 'gmail') {
+      if (!gmailBaseAddress) {
+        throw new Error('未配置 Gmail 地址，请在插件设置中配置');
+      }
+      providerOptions.baseEmail = gmailBaseAddress;
+      providerOptions.senderFilter = gmailSenderFilter;
+    } else if (currentMailProvider === 'gptmail') {
+      providerOptions.apiKey = gptmailApiKey;
+    } else if (currentMailProvider === 'duckmail') {
+      providerOptions.apiKey = duckMailApiKey;
+      providerOptions.domain = duckMailDomain;
     }
-    
-    session.mailClient = new GmailAliasClient({ baseEmail: gmailBaseAddress });
 
-    // 自动生成邮箱变体（+号/点号/大小写组合）
-    // 可选后缀包含姓名信息，便于识别
+    session.mailProvider = createProvider(currentMailProvider, providerOptions);
+
+    // Gmail 渠道需要设置 API 授权状态
+    if (currentMailProvider === 'gmail' && gmailApiAuthorized && gmailApiClient) {
+      session.mailProvider.apiClient = gmailApiClient;
+      session.mailProvider.apiAuthorized = true;
+    }
+
+    // 生成邮箱
     const nameSuffix = `${firstName.toLowerCase()}${lastName.toLowerCase()}`.slice(0, 8);
-
-    const email = await session.mailClient.createInbox({
-      prefix: nameSuffix,  // 可选的姓名后缀
-      mode: 'auto'         // 自动轮换变体方式
+    const email = await session.mailProvider.createInbox({
+      prefix: nameSuffix,
+      mode: 'auto'
     });
     session.email = email;
-    session.manualVerification = true; // 标记需要手动输入验证码
+    session.manualVerification = !session.mailProvider.canAutoVerify?.();
     updateSession(session.id, { email });
 
-    console.log(`[Session ${session.id}] 账号信息:`, { email, firstName, lastName });
+    console.log(`[Session ${session.id}] 账号信息:`, { email, firstName, lastName, provider: currentMailProvider });
 
     // 步骤 3: 获取 OIDC 授权 URL（使用 API 锁）
     updateSession(session.id, { step: '获取授权链接...' });
@@ -411,7 +439,15 @@ async function runSessionRegistration(session) {
       }
     }
 
-    // Gmail 别名模式不需要删除邮箱
+    // 清理邮箱 provider
+    if (session.mailProvider) {
+      try {
+        await session.mailProvider.cleanup();
+      } catch (e) {
+        // 忽略
+      }
+      session.mailProvider = null;
+    }
     session.mailClient = null;
   }
 }
@@ -617,18 +653,25 @@ async function validateAllTokens() {
 /**
  * 开始批量注册
  */
-async function startBatchRegistration(loopCount, concurrency, gmailAddress) {
+async function startBatchRegistration(loopCount, concurrency, provider, gmailAddress) {
   if (isRunning) {
     return { success: false, error: '已有注册任务在运行' };
   }
 
-  // 检查 Gmail 配置
-  if (!gmailAddress) {
-    return { success: false, error: '未配置 Gmail 地址' };
+  // 设置渠道
+  currentMailProvider = provider || 'gmail';
+
+  // 根据渠道检查配置
+  if (currentMailProvider === 'gmail') {
+    if (!gmailAddress) {
+      return { success: false, error: '未配置 Gmail 地址' };
+    }
+    gmailBaseAddress = gmailAddress;
+  } else if (currentMailProvider === 'duckmail') {
+    if (!duckMailDomain) {
+      return { success: false, error: '未选择 DuckMail 域名' };
+    }
   }
-  
-  // 设置全局 Gmail 地址
-  gmailBaseAddress = gmailAddress;
 
   isRunning = true;
   shouldStop = false;
@@ -648,7 +691,7 @@ async function startBatchRegistration(loopCount, concurrency, gmailAddress) {
   sessions.clear();
   broadcastState();
 
-  console.log(`[Service Worker] 开始批量注册: 目标=${loopCount}, 并发=${concurrency}, Gmail=${gmailAddress}`);
+  console.log(`[Service Worker] 开始批量注册: 目标=${loopCount}, 并发=${concurrency}, 渠道=${currentMailProvider}`);
 
   // 创建任务队列
   taskQueue = [];
@@ -783,7 +826,7 @@ function findSessionByWindowId(windowId) {
 }
 
 /**
- * 获取验证码（优先使用 Gmail API 自动获取，否则手动输入）
+ * 获取验证码（使用 provider 自动获取，否则手动输入）
  */
 async function getVerificationCode(session) {
   if (!session) {
@@ -795,21 +838,60 @@ async function getVerificationCode(session) {
     return { success: true, code: session.verificationCode };
   }
 
-  // 检查是否已授权 Gmail API
+  // 使用 provider 获取验证码
+  if (session.mailProvider) {
+    try {
+      console.log(`[Session ${session.id}] 使用 ${currentMailProvider} provider 获取验证码...`);
+
+      const afterTimestamp = session.startTime || Date.now() - 300000;
+
+      const code = await session.mailProvider.fetchVerificationCode(
+        gmailSenderFilter,
+        afterTimestamp,
+        {
+          initialDelay: currentMailProvider === 'guerrilla' ? 15000 : 20000,
+          maxAttempts: 15,
+          pollInterval: currentMailProvider === 'guerrilla' ? 4000 : 5000
+        }
+      );
+
+      if (code) {
+        console.log(`[Session ${session.id}] 成功获取验证码: ${code}`);
+        session.verificationCode = code;
+        return { success: true, code };
+      }
+
+      // 超时，回退到手动模式
+      console.log(`[Session ${session.id}] 获取验证码超时，回退到手动模式`);
+      return {
+        success: false,
+        needManualInput: true,
+        error: '自动获取验证码超时，请手动填写'
+      };
+    } catch (error) {
+      console.error(`[Session ${session.id}] 获取验证码失败:`, error);
+      return {
+        success: false,
+        needManualInput: true,
+        error: `自动获取失败: ${error.message}，请手动填写`
+      };
+    }
+  }
+
+  // 兼容旧逻辑：Gmail API 直接获取
   if (gmailApiAuthorized && gmailApiClient) {
     try {
       console.log(`[Session ${session.id}] 使用 Gmail API 自动获取验证码...`);
 
-      // 使用会话开始时间作为过滤条件，避免获取旧邮件
-      const afterTimestamp = session.startTime || Date.now() - 300000; // 5分钟内
+      const afterTimestamp = session.startTime || Date.now() - 300000;
 
       const code = await gmailApiClient.fetchVerificationCode(
         gmailSenderFilter,
         afterTimestamp,
         {
-          initialDelay: 20000,  // 先等待 20 秒
-          maxAttempts: 12,      // 最多尝试 12 次
-          pollInterval: 5000   // 每 5 秒检查一次
+          initialDelay: 20000,
+          maxAttempts: 12,
+          pollInterval: 5000
         }
       );
 
@@ -819,7 +901,6 @@ async function getVerificationCode(session) {
         return { success: true, code };
       }
 
-      // 超时，回退到手动模式
       console.log(`[Session ${session.id}] Gmail API 获取验证码超时，回退到手动模式`);
       return {
         success: false,
@@ -836,13 +917,13 @@ async function getVerificationCode(session) {
     }
   }
 
-  // Gmail 别名模式下，需要用户手动输入验证码
-  console.log(`[Session ${session.id}] Gmail API 未授权，等待用户手动输入验证码`);
+  // 需要用户手动输入验证码
+  console.log(`[Session ${session.id}] 无法自动获取验证码，等待用户手动输入`);
 
   return {
     success: false,
     needManualInput: true,
-    error: '请从 Gmail 收件箱获取验证码并手动填写'
+    error: '请从邮箱获取验证码并手动填写'
   };
 }
 
@@ -868,8 +949,53 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       break;
 
     case 'START_BATCH_REGISTRATION':
-      startBatchRegistration(message.loopCount || 1, message.concurrency || 1, message.gmailAddress)
-        .then(sendResponse);
+      startBatchRegistration(
+        message.loopCount || 1,
+        message.concurrency || 1,
+        message.provider || 'gmail',
+        message.gmailAddress
+      ).then(sendResponse);
+      return true;
+
+    case 'SET_MAIL_PROVIDER':
+      currentMailProvider = message.provider || 'gmail';
+      chrome.storage.local.set({ mailProvider: currentMailProvider });
+      console.log('[Service Worker] 切换邮箱渠道:', currentMailProvider);
+      sendResponse({ success: true });
+      break;
+
+    case 'SET_GPTMAIL_APIKEY':
+      gptmailApiKey = message.apiKey || 'gpt-test';
+      chrome.storage.local.set({ gptmailApiKey: gptmailApiKey });
+      console.log('[Service Worker] 设置 GPTMail API Key');
+      sendResponse({ success: true });
+      break;
+
+    case 'SET_DUCKMAIL_CONFIG':
+      if (message.apiKey !== undefined) {
+        duckMailApiKey = message.apiKey || '';
+        chrome.storage.local.set({ duckMailApiKey });
+        console.log('[Service Worker] 设置 DuckMail API Key');
+      }
+      if (message.domain !== undefined) {
+        duckMailDomain = message.domain || '';
+        chrome.storage.local.set({ duckMailDomain });
+        console.log('[Service Worker] 设置 DuckMail 域名:', duckMailDomain);
+      }
+      sendResponse({ success: true });
+      break;
+
+    case 'GET_DUCKMAIL_DOMAINS':
+      (async () => {
+        try {
+          const tempProvider = new DuckMailProvider({ apiKey: duckMailApiKey });
+          const domains = await tempProvider.fetchDomains();
+          sendResponse({ success: true, domains });
+        } catch (error) {
+          console.error('[Service Worker] 获取 DuckMail 域名失败:', error);
+          sendResponse({ success: false, error: error.message });
+        }
+      })();
       return true;
 
     case 'STOP_REGISTRATION':
@@ -1076,11 +1202,33 @@ chrome.runtime.onInstalled.addListener(() => {
   console.log('[Service Worker] 扩展已安装/更新');
 });
 
-// 恢复历史记录和 Gmail API 配置
-chrome.storage.local.get(['registrationHistory', 'gmailApiAuthorized', 'gmailSenderFilter']).then((stored) => {
+// 恢复历史记录、Gmail API 配置和邮箱渠道
+chrome.storage.local.get(['registrationHistory', 'gmailApiAuthorized', 'gmailSenderFilter', 'mailProvider', 'gptmailApiKey', 'duckMailApiKey', 'duckMailDomain']).then((stored) => {
   if (stored.registrationHistory) {
     registrationHistory = stored.registrationHistory;
     console.log('[Service Worker] 恢复历史记录:', registrationHistory.length, '条');
+  }
+
+  // 恢复邮箱渠道配置
+  if (stored.mailProvider) {
+    currentMailProvider = stored.mailProvider;
+    console.log('[Service Worker] 恢复邮箱渠道:', currentMailProvider);
+  }
+
+  // 恢复 GPTMail API Key
+  if (stored.gptmailApiKey) {
+    gptmailApiKey = stored.gptmailApiKey;
+    console.log('[Service Worker] 恢复 GPTMail API Key');
+  }
+
+  // 恢复 DuckMail 配置
+  if (stored.duckMailApiKey) {
+    duckMailApiKey = stored.duckMailApiKey;
+    console.log('[Service Worker] 恢复 DuckMail API Key');
+  }
+  if (stored.duckMailDomain) {
+    duckMailDomain = stored.duckMailDomain;
+    console.log('[Service Worker] 恢复 DuckMail 域名:', duckMailDomain);
   }
 
   // 恢复 Gmail API 配置

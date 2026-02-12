@@ -36,12 +36,25 @@
       <div id="sessions-list" class="sessions-list"></div>
     </div>
 
-    <!-- Gmail 配置区域 -->
-    <div id="gmail-section" class="section gmail-section">
+    <!-- 邮箱渠道配置区域 -->
+    <div id="mail-section" class="section mail-section">
       <div class="section-header">
         <h2>邮箱配置</h2>
       </div>
-      <div class="gmail-config">
+
+      <!-- 渠道选择 -->
+      <div class="provider-select-row">
+        <label for="mail-provider-select">邮箱渠道</label>
+        <select id="mail-provider-select" class="provider-select">
+          <option value="gmail">Gmail (需配置)</option>
+          <option value="guerrilla">Guerrilla Mail (免配置)</option>
+          <option value="gptmail">GPTMail (需 API Key)</option>
+          <option value="duckmail">DuckMail (可选 API Key)</option>
+        </select>
+      </div>
+
+      <!-- Gmail 配置面板 -->
+      <div id="gmail-config-panel" class="provider-panel">
         <div class="gmail-input-row">
           <input type="email" id="gmail-address" placeholder="输入你的 Gmail 地址" class="gmail-input">
           <button id="gmail-save-btn" class="btn-small">保存</button>
@@ -61,6 +74,40 @@
 
         <p class="gmail-hint">授权后可自动获取验证码，无需手动填写</p>
         <p class="gmail-status" id="gmail-status"></p>
+      </div>
+
+      <!-- Guerrilla Mail 配置面板 -->
+      <div id="guerrilla-config-panel" class="provider-panel" style="display: none;">
+        <div class="guerrilla-info">
+          <p class="provider-hint success">✓ 无需配置，自动生成临时邮箱</p>
+          <p class="provider-desc">每次注册自动获取新的临时邮箱地址，验证码自动获取</p>
+        </div>
+      </div>
+
+      <!-- GPTMail 配置面板 -->
+      <div id="gptmail-config-panel" class="provider-panel" style="display: none;">
+        <div class="gmail-input-row">
+          <input type="text" id="gptmail-apikey" placeholder="API Key (默认: gpt-test)" class="gmail-input" value="gpt-test">
+          <button id="gptmail-save-btn" class="btn-small">保存</button>
+        </div>
+        <p class="provider-hint success">✓ 自动随机生成邮箱，验证码自动获取</p>
+        <p class="provider-desc">默认使用测试 Key，每日限 20 万次调用</p>
+      </div>
+
+      <!-- DuckMail 配置面板 -->
+      <div id="duckmail-config-panel" class="provider-panel" style="display: none;">
+        <div class="gmail-input-row">
+          <input type="text" id="duckmail-apikey" placeholder="API Key (可选，以 dk_ 开头)" class="gmail-input">
+          <button id="duckmail-apikey-save-btn" class="btn-small">保存</button>
+        </div>
+        <div class="gmail-input-row" style="margin-top: 6px;">
+          <select id="duckmail-domain-select" class="provider-select" style="flex: 1;">
+            <option value="">加载域名中...</option>
+          </select>
+          <button id="duckmail-refresh-domains-btn" class="btn-small">刷新</button>
+        </div>
+        <p class="provider-hint success">✓ 随机用户名，验证码自动获取</p>
+        <p class="provider-desc">不填 API Key 可用公共域名，填写后可用私有域名</p>
       </div>
     </div>
 
