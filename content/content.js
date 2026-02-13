@@ -651,10 +651,43 @@
    * 处理授权页
    */
   async function handleAllowAccessPage() {
+    // 查询是否配置为拒绝授权
+    let shouldDeny = false;
+    try {
+      const res = await chrome.runtime.sendMessage({ type: 'GET_DENY_ACCESS' });
+      shouldDeny = res?.denyAccess || false;
+    } catch (e) {}
+
+    if (shouldDeny) {
+      updateStep('点击拒绝访问（账号安全模式）...');
+      await sleep(300);
+
+      // 查找拒绝/取消按钮
+      const denyBtn = $('button[data-testid="deny-access-button"], button[data-testid="cancel-button"], input[type="submit"][value*="Deny"], input[type="submit"][value*="Cancel"]');
+      if (denyBtn && fastClick(denyBtn)) {
+        updateStep('已拒绝访问');
+        chrome.runtime.sendMessage({ type: 'AUTH_DENIED' }).catch(() => {});
+        return true;
+      }
+
+      // 文本匹配查找拒绝按钮
+      const buttons = document.querySelectorAll('button, input[type="submit"]');
+      for (const b of buttons) {
+        const text = (b.textContent || b.value || '').trim();
+        if ((text.includes('Deny') || text.includes('Cancel') || text.includes('拒绝') || text.includes('取消')) && fastClick(b)) {
+          updateStep('已拒绝访问');
+          chrome.runtime.sendMessage({ type: 'AUTH_DENIED' }).catch(() => {});
+          return true;
+        }
+      }
+
+      console.log('[Content Script] 找不到拒绝按钮，回退到允许');
+    }
+
+    // 默认行为：允许访问
     updateStep('点击允许访问...');
     await sleep(300);
 
-    // 尝试多种选择器
     const btn = $('button#cli_login_button, button[data-testid="allow-access-button"], input[type="submit"][value*="Allow"]');
     if (btn && fastClick(btn)) {
       updateStep('已允许访问，等待完成...');
@@ -662,7 +695,6 @@
       return true;
     }
 
-    // 如果找不到按钮，尝试查找所有包含 "Allow" 文字的按钮
     const buttons = document.querySelectorAll('button, input[type="submit"]');
     for (const b of buttons) {
       const text = b.textContent || b.value || '';

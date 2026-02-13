@@ -10,7 +10,8 @@
     "tabs",
     "windows",
     "identity",
-    "offscreen"
+    "offscreen",
+    "proxy"
   ],
   "oauth2": {
     "client_id": "YOUR_CLIENT_ID",
@@ -30,7 +31,12 @@
     "https://mail.chatgpt.org.uk/*",
     "https://*.chatgpt.org.uk/*",
     "https://api.duckmail.sbs/*",
-    "https://*.duckmail.sbs/*"
+    "https://*.duckmail.sbs/*",
+    "https://mail.112857.xyz/*",
+    "https://*.112857.xyz/*",
+    "https://ipinfo.io/*",
+    "https://ipwhois.app/*",
+    "https://api.ip.sb/*"
   ],
   "incognito": "spanning",
   "action": {

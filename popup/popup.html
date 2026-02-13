@@ -50,6 +50,7 @@
           <option value="guerrilla">Guerrilla Mail (免配置)</option>
           <option value="gptmail">GPTMail (需 API Key)</option>
           <option value="duckmail">DuckMail (可选 API Key)</option>
+          <option value="moemail">MoeMail (需 API Key)</option>
         </select>
       </div>
 
@@ -109,6 +110,40 @@
         <p class="provider-hint success">✓ 随机用户名，验证码自动获取</p>
         <p class="provider-desc">不填 API Key 可用公共域名，填写后可用私有域名</p>
       </div>
+
+      <!-- MoeMail 配置面板 -->
+      <div id="moemail-config-panel" class="provider-panel" style="display: none;">
+        <div class="gmail-input-row">
+          <input type="url" id="moemail-api-url" placeholder="http://your-api-url" class="gmail-input">
+          <button id="moemail-test-connection-btn" class="btn-small">测试</button>
+        </div>
+        <div class="gmail-input-row" style="margin-top: 6px;">
+          <input type="text" id="moemail-api-key" placeholder="API Key (必填)" class="gmail-input">
+          <button id="moemail-save-api-btn" class="btn-small">保存</button>
+        </div>
+        <div class="gmail-input-row" style="margin-top: 6px;">
+          <select id="moemail-duration-select" class="provider-select" style="flex: 1;">
+            <option value="3600000">1小时</option>
+            <option value="86400000">1天</option>
+            <option value="604800000">7天</option>
+            <option value="0" selected>永久</option>
+          </select>
+          <select id="moemail-domain-select" class="provider-select" style="flex: 1;">
+            <option value="">加载域名中...</option>
+          </select>
+          <button id="moemail-refresh-domains-btn" class="btn-small">刷新</button>
+        </div>
+        <div class="gmail-input-row" style="margin-top: 6px;">
+          <input type="text" id="moemail-prefix" placeholder="固定前缀 (可选)" class="gmail-input" style="flex: 1;">
+          <input type="number" id="moemail-random-length" min="3" max="10" value="5" class="gmail-input" style="width: 80px;" placeholder="随机位数">
+        </div>
+        <div class="gmail-input-row" style="margin-top: 6px; background: #f9f9f9; padding: 8px; border-radius: 4px;">
+          <span style="font-size: 11px; color: #666;">预览:</span>
+          <code id="moemail-preview-text" style="font-size: 12px; color: #232f3e; margin-left: 8px;">配置完成后显示</code>
+        </div>
+        <p class="provider-hint success">✓ 自定义邮箱前缀和域名，验证码自动获取</p>
+        <p id="moemail-status" class="provider-desc"></p>
+      </div>
     </div>
 
     <!-- 设置区域 -->
@@ -124,6 +159,34 @@
         </div>
       </div>
       <p class="settings-hint">⚠️ 使用 Gmail 别名模式时，建议并发设为 1</p>
+      <div class="settings-row">
+        <div class="setting-item" style="flex: 1;">
+          <label>
+            <input type="checkbox" id="deny-access-toggle"> 授权页点击拒绝（增强账号安全）
+          </label>
+        </div>
+      </div>
+      <div class="settings-row" style="margin-top: 8px;">
+        <div class="setting-item" style="flex: 1;">
+          <label>
+            <input type="checkbox" id="proxy-enabled-toggle"> 启用代理提取
+          </label>
+        </div>
+      </div>
+      <div id="proxy-config-panel" style="display: none; margin-top: 6px;">
+        <div class="gmail-input-row">
+          <textarea id="proxy-manual-list" placeholder="手动代理列表（每行一个）&#10;格式: socks5://ip:port&#10;http://user:pass@ip:port&#10;ip:port" class="gmail-input" style="flex: 1; min-height: 60px; resize: vertical; font-size: 11px;"></textarea>
+        </div>
+        <p id="proxy-parsed-count" class="provider-desc" style="margin-top: 2px; font-size: 11px;"></p>
+        <div class="gmail-input-row" style="margin-top: 4px;">
+          <input type="text" id="proxy-api-url" placeholder="代理提取 API 地址（可选）" class="gmail-input" style="flex: 1;">
+        </div>
+        <div class="gmail-input-row" style="margin-top: 4px;">
+          <input type="text" id="proxy-api-key" placeholder="API Key（可选）" class="gmail-input" style="flex: 1;">
+          <button id="proxy-test-btn" class="gmail-btn">测试</button>
+        </div>
+        <p id="proxy-status" class="provider-desc" style="margin-top: 4px;"></p>
+      </div>
     </div>
 
     <!-- 操作按钮区域 -->
